@@ -56,6 +56,7 @@ async function startServer() {
   //start 
   const PORT = Number(4010);
   await app.listen({ port: PORT });
+  console.log("hello")
 
   console.log(`Server running at http://localhost:${PORT}`);
   console.log(`Swagger docs at http://localhost:${PORT}/docs`);
