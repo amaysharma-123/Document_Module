@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: document_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: document_user
+      POSTGRES_PASSWORD: document_pass
+      POSTGRES_DB: document_db
+    volumes:
+      - document_pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: document_redis
+    ports:
+      - "6379:6379"
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redis_insight
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis
+
+volumes:
+  document_pg_data:

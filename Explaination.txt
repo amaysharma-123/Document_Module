@@ -1,0 +1,20 @@
+FINAL ARCHITECTURE MAP
+
+
+server.ts (boot)
+     ↓
+Routes (HTTP handling)
+     ↓
+Zod Validation
+     ↓
+Service (business logic) //Redis sits beside service via decorators.
+     ↓
+Decorators (cross-cutting concerns)
+     ↓
+Repository (DB interaction)
+     ↓
+Entity (table mapping)
+     ↓
+PostgreSQL (database)
+
+
