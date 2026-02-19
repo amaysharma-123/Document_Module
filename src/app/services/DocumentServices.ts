@@ -16,6 +16,10 @@ import { PerformanceTracker } from "../decorators/PerformanceTracker";
 import { CacheGet } from "../decorators/CacheGet";
 import { CachePurge } from "../decorators/CachePurge";
 
+
+import { sendDocumentEvent } from "../kafka/producer/documentProducer";
+import { DocumentEvents } from "../kafka/events/documentEvents";
+
 export class DocumentServices implements IDocumentServices {
 
   private readonly repo: TypeOrmDocumentRepo;
@@ -24,7 +28,7 @@ export class DocumentServices implements IDocumentServices {
     this.repo = repo;
   }
 
-  
+  // ---------------- CREATE ----------------
   @CachePurge()
   async createDocument(command: CreateDocumentCommand): Promise<Document> {
 
@@ -42,10 +46,18 @@ export class DocumentServices implements IDocumentServices {
 
     await this.repo.save(doc);
 
+    
+    await sendDocumentEvent(DocumentEvents.CREATED, {
+      id: doc.id,
+      title: doc.title,
+      type: doc.type,
+      createdAt: doc.createdAt,
+    });
+
     return doc;
   }
 
-  
+  // ---------------- GET ----------------
   @PerformanceTracker()
   @CacheGet(300)
   async getDocument(command: GetDocumentCommand): Promise<Document | null> {
@@ -57,15 +69,15 @@ export class DocumentServices implements IDocumentServices {
     return this.repo.findById(command.id);
   }
 
-  
+  // ---------------- SEARCH ----------------
   @PerformanceTracker()
   @CacheGet(300)
   async searchDocument(command: SearchDocumentCommand): Promise<Document[]> {
 
-    return this.repo.searchByTitle(command.title?.trim() ?? ""); // ?? operator if LHS is null or undefined then use empty string. 
+    return this.repo.searchByTitle(command.title?.trim() ?? "");
   }
 
-  
+  // ---------------- UPDATE ----------------
   @CachePurge()
   async updateDocument(id: string, title: string): Promise<Document> {
 
@@ -76,33 +88,47 @@ export class DocumentServices implements IDocumentServices {
     }
 
     const updated: Document = {
-      ...existing,  // spread operator copies all things . 
-      title: title.trim(), // override title 
+      ...existing,
+      title: title.trim(),
       updatedAt: new Date(),
     };
 
     await this.repo.save(updated);
+
+
+    await sendDocumentEvent(DocumentEvents.UPDATED, {
+      id: updated.id,
+      title: updated.title,
+      updatedAt: updated.updatedAt,
+    });
 
     return updated;
   }
 
   // ---------------- DELETE ----------------
   @CachePurge()
-  async deleteDocument(id: string): Promise<void> {
+async deleteDocument(id: string): Promise<void> {
 
-    const existing = await this.repo.findById(id);
+  const existing = await this.repo.findById(id);
 
-    if (!existing) {
-      throw new Error("Document not found");
-    }
-
-    const updated: Document = {
-      ...existing,
-      active: false,
-      status: DocStatusType.DRAFT,
-      updatedAt: new Date(),
-    };
-
-    await this.repo.save(updated);
+  if (!existing) {
+    throw new Error("Document not found");
   }
+
+  const updated: Document = {
+    ...existing,
+    active: false,
+    status: DocStatusType.DRAFT,
+    updatedAt: new Date(),
+  };
+
+  await this.repo.save(updated);
+
+
+  await sendDocumentEvent(DocumentEvents.DELETED, {
+    id: updated.id,
+    deletedAt: updated.updatedAt,
+  });
+}
+
 }

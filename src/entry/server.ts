@@ -13,21 +13,28 @@ import { AppDataSource } from "../app/persistence/datasource";
 import { redisClient } from "../app/cache/redisClient";
 import { documentRoutes } from "./routes/documentRoutes";
 
-async function startServer() {
-  
-  const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>(); // here we are creating fastify instance. and make sure "use zod types for validation"
 
-  // tells fastify to use Zod 
+import { connectProducer } from "../app/kafka/producer/documentProducer";
+import { startDocumentConsumer } from "../app/kafka/consumer/documentConsumer";
+
+async function startServer() {
+  const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
+
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-
+  
   await AppDataSource.initialize();
   console.log("Database connected");
 
   
   await redisClient.connect();
   console.log("Redis connected");
+
+  
+  await connectProducer();
+  await startDocumentConsumer();
+  console.log("Kafka connected");
 
   
   await app.register(fastifySwagger, {
@@ -38,7 +45,7 @@ async function startServer() {
         version: "1.0.0",
       },
     },
-    transform: jsonSchemaTransform,  // swagger won't understand zod. so transform from zod schemas to json format . 
+    transform: jsonSchemaTransform,
   });
 
   await app.register(swaggerUI, {
@@ -53,13 +60,14 @@ async function startServer() {
   
   app.register(documentRoutes);
 
-  //start 
   const PORT = Number(4010);
   await app.listen({ port: PORT });
-  console.log("hello")
 
   console.log(`Server running at http://localhost:${PORT}`);
   console.log(`Swagger docs at http://localhost:${PORT}/docs`);
+
+  console.log(`Kafka UI available at http://localhost:8080`);
+  console.log(`RedisInsight available at http://localhost:5540`);
 }
 
 startServer().catch((err) => {

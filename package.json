@@ -4,12 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "build": "tsc",
-  "typeorm": "typeorm-ts-node-commonjs -d src/app/persistence/datasource.ts",
-  "migration:generate": "npm run typeorm migration:generate src/app/persistence/migrations/InitMigration",
-  "migration:run": "npm run build && typeorm migration:run -d dist/app/persistence/datasource.js",
-  "migration:revert": "npm run build && typeorm migration:revert -d dist/app/persistence/datasource.js"
-},
+    "build": "tsc",
+    "typeorm": "typeorm-ts-node-commonjs -d src/app/persistence/datasource.ts",
+    "migration:generate": "npm run typeorm migration:generate src/app/persistence/migrations/InitMigration",
+    "migration:run": "npm run build && typeorm migration:run -d dist/app/persistence/datasource.js",
+    "migration:revert": "npm run build && typeorm migration:revert -d dist/app/persistence/datasource.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -24,6 +24,7 @@
     "@fastify/swagger-ui": "^5.2.5",
     "fastify": "^5.7.4",
     "fastify-type-provider-zod": "^6.1.0",
+    "kafkajs": "^2.2.4",
     "pg": "^8.18.0",
     "redis": "^5.10.0",
     "reflect-metadata": "^0.2.2",
