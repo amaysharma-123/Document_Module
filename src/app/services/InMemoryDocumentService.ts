@@ -6,6 +6,8 @@ import {
   DocStatusType,
   GetDocumentCommand,
   SearchDocumentCommand,
+  UpdateDocumentCommand,
+  DeleteDocumentCommand,
 } from "../../contracts/states/document";
 
 import { InMemoryDocumentRepo } from "../repos/InMemoryDocumentRepo";
@@ -51,8 +53,8 @@ export class InMemoryDocumentService implements IDocumentServices {
   async searchDocument(command: SearchDocumentCommand): Promise<Document[]> {
     return this.repo.searchByTitle(command.title);
   }
-  async deleteDocument(id: string): Promise<void> {
-    const document = await this.repo.findById(id);
+  async deleteDocument(command:DeleteDocumentCommand): Promise<void> {
+    const document = await this.repo.findById(command.id);
 
     if (!document) {
       throw new Error("Document not found");
@@ -62,25 +64,22 @@ export class InMemoryDocumentService implements IDocumentServices {
 
     await this.repo.save(document);
   }
-  async updateDocument(
-  id: string,
-  title: string
+  async updateDocument(command:UpdateDocumentCommand
 ): Promise<Document> {
 
   console.log("Executing InMemory updateDocument");
 
-  const document = await this.repo.findById(id);
+  const document = await this.repo.findById(command.id);
 
   if (!document) {
     throw new Error("Document not found");
   }
 
-  document.title = title;
+  document.title = command.title;
   document.updatedAt = new Date();
 
   await this.repo.save(document);
 
   return document;
 }
-
 }

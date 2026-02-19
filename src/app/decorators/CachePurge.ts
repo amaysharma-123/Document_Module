@@ -1,6 +1,6 @@
 import { redisClient } from "../cache/redisClient";
 
-export function CachePurge() {
+export function CachePurge(prefix:string, margs:string[]) {
   return function (
     target: any,
     propertyKey: string,
@@ -12,20 +12,18 @@ export function CachePurge() {
     descriptor.value = async function (...args: any[]) {
 
       const result = await originalMethod.apply(this, args);
-
+      const command = args[0];
+   
+      let cacheKeySegments  = [prefix];
       
-      const possibleId = args[0];
+      margs.forEach(value=>{
+        cacheKeySegments.push(command[value]);
+      });
 
-      if (typeof possibleId === "string") {
-        await redisClient.del(`document:${possibleId}`);
-      }
+      const cacheKey=cacheKeySegments.join(':');
+      await redisClient.del(cacheKey);
 
-      const searchKeys = await redisClient.keys("search:*");
-      for (const key of searchKeys) {
-        await redisClient.del(key);
-      }
-
-      console.log("Cache purged by decorator");
+      console.log("Cache purged by decorator",cacheKey);
 
       return result;
     };

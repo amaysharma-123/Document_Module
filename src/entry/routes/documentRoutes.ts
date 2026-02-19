@@ -3,8 +3,10 @@ import { DocumentServices } from "../../app/services/DocumentServices";
 import type { IDocumentServices } from "../../contracts/services/IDocumentServices";
 import type {
   CreateDocumentCommand,
+  DeleteDocumentCommand,
   GetDocumentCommand,
   SearchDocumentCommand,
+  UpdateDocumentCommand,
 } from "../../contracts/states/document";
 
 import {
@@ -72,10 +74,11 @@ export async function documentRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      const updated = await service.updateDocument(
-        request.params.id,
-        request.body.title
-      );
+      const command: UpdateDocumentCommand ={
+        id: request.params.id,
+        title: request.body.title
+      }
+      const updated = await service.updateDocument(command);
       return reply.send(updated);
     }
   );
@@ -88,7 +91,10 @@ export async function documentRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      await service.deleteDocument(request.params.id);
+      const command: DeleteDocumentCommand={
+        id:request.params.id
+      }
+      await service.deleteDocument(command);
       return reply.code(204).send();
     }
   );

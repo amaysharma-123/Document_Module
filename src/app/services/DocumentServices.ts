@@ -5,6 +5,8 @@ import type {
   CreateDocumentCommand,
   GetDocumentCommand,
   SearchDocumentCommand,
+  UpdateDocumentCommand,
+  DeleteDocumentCommand,
 } from "../../contracts/states/document";
 
 import { DocStatusType } from "../../contracts/states/document";
@@ -16,12 +18,10 @@ import { PerformanceTracker } from "../decorators/PerformanceTracker";
 import { CacheGet } from "../decorators/CacheGet";
 import { CachePurge } from "../decorators/CachePurge";
 
-
 import { sendDocumentEvent } from "../kafka/producer/documentProducer";
 import { DocumentEvents } from "../kafka/events/documentEvents";
 
 export class DocumentServices implements IDocumentServices {
-
   private readonly repo: TypeOrmDocumentRepo;
 
   constructor(repo: TypeOrmDocumentRepo) {
@@ -29,9 +29,8 @@ export class DocumentServices implements IDocumentServices {
   }
 
   // ---------------- CREATE ----------------
-  @CachePurge()
-  async createDocument(command: CreateDocumentCommand): Promise<Document> {
 
+  async createDocument(command: CreateDocumentCommand): Promise<Document> {
     const now = new Date();
 
     const doc: Document = {
@@ -46,12 +45,16 @@ export class DocumentServices implements IDocumentServices {
 
     await this.repo.save(doc);
 
-    
     await sendDocumentEvent(DocumentEvents.CREATED, {
-      id: doc.id,
-      title: doc.title,
-      type: doc.type,
-      createdAt: doc.createdAt,
+      eventId: crypto.randomUUID(),
+      eventType: "DOCUMENT_CREATED",
+      occurredAt: new Date().toISOString(),
+      data: {
+        id: doc.id,
+        title: doc.title,
+        type: doc.type,
+        status: doc.status,
+      },
     });
 
     return doc;
@@ -59,42 +62,39 @@ export class DocumentServices implements IDocumentServices {
 
   // ---------------- GET ----------------
   @PerformanceTracker()
-  @CacheGet(300)
+  @CacheGet('document',['id'],300)
   async getDocument(command: GetDocumentCommand): Promise<Document | null> {
-
-    if (!command?.id) {
-      throw new Error("Document id is required");
-    }
-
     return this.repo.findById(command.id);
   }
+  /* 
+  document:1 => Document
+  document:2 => Document 
+  documents: 
+  */
 
   // ---------------- SEARCH ----------------
   @PerformanceTracker()
-  @CacheGet(300)
+  @CacheGet('documents',['title'],300)
   async searchDocument(command: SearchDocumentCommand): Promise<Document[]> {
-
     return this.repo.searchByTitle(command.title?.trim() ?? "");
   }
 
   // ---------------- UPDATE ----------------
-  @CachePurge()
-  async updateDocument(id: string, title: string): Promise<Document> {
-
-    const existing = await this.repo.findById(id);
+  @CachePurge('document',['id'])
+  async updateDocument(command: UpdateDocumentCommand): Promise<Document> {
+    const existing = await this.repo.findById(command.id);
 
     if (!existing) {
       throw new Error("Document not found");
-    }
+    } 
 
     const updated: Document = {
       ...existing,
-      title: title.trim(),
+      title: command.title.trim(),
       updatedAt: new Date(),
     };
 
     await this.repo.save(updated);
-
 
     await sendDocumentEvent(DocumentEvents.UPDATED, {
       id: updated.id,
@@ -106,29 +106,26 @@ export class DocumentServices implements IDocumentServices {
   }
 
   // ---------------- DELETE ----------------
-  @CachePurge()
-async deleteDocument(id: string): Promise<void> {
+  @CachePurge('document',['id'])
+  async deleteDocument(command: DeleteDocumentCommand): Promise<void> {
+    const existing = await this.repo.findById(command.id);
 
-  const existing = await this.repo.findById(id);
+    if (!existing) {
+      throw new Error("Document not found");
+    }
 
-  if (!existing) {
-    throw new Error("Document not found");
+    const updated: Document = {
+      ...existing,
+      active: false,
+      status: DocStatusType.DRAFT,
+      updatedAt: new Date(),
+    };
+
+    await this.repo.save(updated);
+
+    await sendDocumentEvent(DocumentEvents.DELETED, {
+      id: updated.id,
+      deletedAt: updated.updatedAt,
+    });
   }
-
-  const updated: Document = {
-    ...existing,
-    active: false,
-    status: DocStatusType.DRAFT,
-    updatedAt: new Date(),
-  };
-
-  await this.repo.save(updated);
-
-
-  await sendDocumentEvent(DocumentEvents.DELETED, {
-    id: updated.id,
-    deletedAt: updated.updatedAt,
-  });
-}
-
 }

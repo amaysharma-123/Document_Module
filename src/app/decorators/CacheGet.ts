@@ -1,6 +1,7 @@
+import { log } from "console";
 import { redisClient } from "../cache/redisClient";
 
-export function CacheGet(ttl: number) {
+export function CacheGet(prefix: string, margs: string[], ttl: number) {
   return function (
     target: any,
     propertyKey: string,
@@ -9,28 +10,16 @@ export function CacheGet(ttl: number) {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {
+      const command = args[0];
 
-      let cacheKey = "";
+      let cacheKeySegments = [prefix];
 
-      // getDocument(command)
-      if (propertyKey === "getDocument") {
-        const command = args[0];
-        if (!command?.id) {
-          throw new Error("Document id required for caching");
-        }
-        cacheKey = `document:${command.id}`;
-      }
+      margs.forEach((value) => {
+        cacheKeySegments.push(command[value]);
+      });
 
-      // searchDocument(command)
-      if (propertyKey === "searchDocument") {
-        const command = args[0];
-        cacheKey = `search:${command?.title ?? "all"}`;
-      }
-
-      if (!cacheKey) {
-        return originalMethod.apply(this, args);
-      }
-
+      const cacheKey = cacheKeySegments.join(":");
+      console.log("cache something", cacheKey);
       const cached = await redisClient.get(cacheKey);
 
       if (cached) {
@@ -50,10 +39,10 @@ export function CacheGet(ttl: number) {
           },
         });
       }
-
       return result;
     };
 
     return descriptor;
   };
 }
+
